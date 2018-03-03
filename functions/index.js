@@ -210,12 +210,23 @@ exports.workout_diary_step = functions.https.onRequest((request, response) => {
       })
   }
 
+  function getOptions(app) {
+    var ref = db.ref("users/" + USER + '/');
+    let workout_str = "Your available workouts are ";
+    ref.orderByKey().on('value', function(snapshot) {
+        snapshot.forEach(function(data) {
+            workout_str += data.key + ', ';
+        })
+        app.ask(workout_str)
+    })
+  }
   // d. build an action map, which maps intent names to functions
   let actionMap = new Map();
   actionMap.set(NAME_ACTION, makeResponse);
   actionMap.set('count', logCounts);
   actionMap.set('summary', summary);
   actionMap.set('end', endSummary);
+  actionMap.set('options', getOptions);
 
 
 
