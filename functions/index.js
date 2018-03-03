@@ -13,7 +13,7 @@ var db = admin.database();
 const NAME_ACTION = 'activity';
 // b. the parameters that are parsed from the make_name intent
 const STEP_ARGUMENT = 'track';
-const WORKOUT_ARGUMENT = 'workout';
+const WORKOUT_ARGUMENT = 'workout-type';
 const COUNT_ARGUMENT = 'num';
 const USER = 'rohitvarkey';
 
@@ -56,6 +56,7 @@ exports.workout_diary_step = functions.https.onRequest((request, response) => {
     console.log("Invoked");
     let workout_type = app.getArgument(WORKOUT_ARGUMENT);
     let step = eval(app.getArgument(STEP_ARGUMENT));
+    console.log("Invoked with ", workout_type, step, USER);
     let exercise_str = "";
     //let step = 1;
     if (step == null) {
@@ -144,6 +145,7 @@ exports.workout_diary_step = functions.https.onRequest((request, response) => {
   function summary(app) {
     console.log("summary invoked");
     let workout_type = app.getArgument(WORKOUT_ARGUMENT);
+    console.log("Invoked with ", workout_type, USER);
     if (workout_type == null) {
         workout_type = 'Monday'
     }
@@ -212,11 +214,12 @@ exports.workout_diary_step = functions.https.onRequest((request, response) => {
 
   function getOptions(app) {
     var ref = db.ref("users/" + USER + '/');
-    let workout_str = "Your available workouts are ";
+    let workout_str = "<speak> Your available workouts are ";
     ref.orderByKey().on('value', function(snapshot) {
         snapshot.forEach(function(data) {
-            workout_str += data.key + ', ';
+            workout_str += data.key + ', <break time=500ms/>';
         })
+        workout_str += "</speak>"
         app.ask(workout_str)
     })
   }
