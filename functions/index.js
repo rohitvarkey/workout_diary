@@ -25,6 +25,33 @@ exports.workout_diary_step = functions.https.onRequest((request, response) => {
   console.log(app.getUser());
 
 // c. The function that generates the silly name
+    function startNewUserWorkout(app, workout_type, completed) {
+        console.log("Tracking new user activity");
+        let trackUpdateRef = db.ref("last_activity/" + USER);
+        trackUpdateRef.set({
+            "last_done" : {
+                "workout_type": workout_type,
+                "completed": completed,
+            }
+        });
+    }
+
+    function trackLastUserActivity(app, workout_type, completed, step, exercise, lastRep) {
+      console.log("Tracking last user activity");
+      let trackUpdateRef = db.ref("last_activity/" + USER);
+      trackUpdateRef.update({
+            "last_done/workout_type": workout_type,
+            "last_done/completed": completed,
+      });
+      if (exercise != null) {
+          let exerciseRef = db.ref("last_activity/" + USER + "/exercises/" + step);
+          exerciseRef.update({
+              'exercise': exercise,
+              'lastRep': lastRep
+          })
+      }
+    }
+
   function makeResponse (app) {
     console.log("Invoked");
     let workout_type = app.getArgument(WORKOUT_ARGUMENT);
@@ -45,11 +72,13 @@ exports.workout_diary_step = functions.https.onRequest((request, response) => {
       console.log("Val", snapshot.val());
       let val = snapshot.val();
       if (val == null) {
+        trackLastUserActivity(app, workout_type, true, step);
         app.tell("Awesome! You're done for the day Great work");
         return;
       }
       let reps = val['reps'];
       let exercise = val['exercise'];
+      trackLastUserActivity(app, workout_type, false, step, exercise, 0);
       app.ask('Alright, your next exercise is ' + reps +
         ' reps of ' + exercise + '. You can do it!');
     })
@@ -60,6 +89,13 @@ exports.workout_diary_step = functions.https.onRequest((request, response) => {
     let workout_type = app.getArgument(WORKOUT_ARGUMENT);
     let step = eval(app.getArgument(STEP_ARGUMENT));
     let counts = app.getArgument(COUNT_ARGUMENT);
+    /*let counts = countsOriginal.map(Number);
+    if (counts[counts.length - 1] == NaN) {
+        counts.splice(counts.length - 1, 1)
+        countsOriginal[countsOriginal.length - 1].split(" ").map(Number)
+        counts.push();
+        console.log("Modded", counts);
+    }*/
     let max_count = Math.max(...counts);
     //let step = 1;
     if (step == null) {
@@ -84,13 +120,14 @@ exports.workout_diary_step = functions.https.onRequest((request, response) => {
       let exercise = val['exercise'];
       let diff = reps - max_count;
       if (max_count < reps) {
+        trackLastUserActivity(app, workout_type, false, step, exercise, max_count);
         app.ask('You have' + diff + 'reps left for' + exercise + '. Would you like to skip or continue?');
       }
       else {
+        trackLastUserActivity(app, workout_type, false, step, exercise, reps);
         app.ask('Well done! You completed ' + max_count + ' ' + exercise + '. Say done to start the next exercise.');
       }
     })
-
   }
 
   function summary(app) {
@@ -103,7 +140,7 @@ exports.workout_diary_step = functions.https.onRequest((request, response) => {
     var ref = db.ref("users/" + USER + '/' + workout_type);
     console.log("users/" + USER + '/' + workout_type);
     console.log("Ref", ref);
-    let summary_str = "Your " + workout_type + "workout consists of ";
+    let summary_str = "Your " + workout_type + " workout consists of ";
     ref.orderByKey().on('value', function(snapshot) {
       console.log("snapshot:", snapshot);
         snapshot.forEach(function(exercise_snapshot) {
@@ -118,11 +155,11 @@ exports.workout_diary_step = functions.https.onRequest((request, response) => {
             summary_str += reps + " " + exercise + ", ";
             console.log(summary_str);
         });
+        summary_str += ". Tell me when you want to begin!"
+        startNewUserWorkout(app, workout_type, false);
+        app.ask(summary_str);
     });
-    summary_str += ". Tell me when you want to begin!"
-    app.ask(summary_str);
   }
-
 
   // d. build an action map, which maps intent names to functions
   let actionMap = new Map();
