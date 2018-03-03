@@ -103,26 +103,33 @@ exports.workout_diary_step = functions.https.onRequest((request, response) => {
     var ref = db.ref("users/" + USER + '/' + workout_type);
     console.log("users/" + USER + '/' + workout_type);
     console.log("Ref", ref);
-    summary_str = "Your " + workout_type + "workout consists of ";
-    ref.on('value', function(snapshot) {
+    let summary_str = "Your " + workout_type + "workout consists of ";
+    ref.orderByKey().on('value', function(snapshot) {
       console.log("snapshot:", snapshot);
-      console.log("Val", snapshot.val());
-      let val = snapshot.val();
-      if (val == null) {
-        app.tell("Something went wrong.");
-        return;
-      }
-      let reps = val['reps'];
-      let exercise = val['exercise'];
-      summary_str += reps + " " + exercise + ", ";
-    })
+        snapshot.forEach(function(exercise_snapshot) {
+            console.log("Val", exercise_snapshot.val());
+            let val = exercise_snapshot.val();
+            if (val == null) {
+                app.tell("Something went wrong.");
+                return;
+            }
+            let reps = val['reps'];
+            let exercise = val['exercise'];
+            summary_str += reps + " " + exercise + ", ";
+            console.log(summary_str);
+        });
+    });
     summary_str += ". Tell me when you want to begin!"
     app.ask(summary_str);
   }
+
+
   // d. build an action map, which maps intent names to functions
   let actionMap = new Map();
   actionMap.set(NAME_ACTION, makeResponse);
   actionMap.set('count', logCounts);
+  actionMap.set('summary', summary);
+
 
 
 app.handleRequest(actionMap);
