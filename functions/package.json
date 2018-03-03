@@ -1,0 +1,14 @@
+{
+  "name": "gh-exercise-response",
+  "description": "Get your exercise schedule!",
+  "version": "0.0.1",
+  "author": "rohitvarkey",
+  "engines": {
+    "node": "~4.2"
+  },
+  "dependencies": {
+    "actions-on-google": "^1.0.0",
+    "firebase-admin": "latest",
+    "firebase-functions": "latest"
+  }
+}
