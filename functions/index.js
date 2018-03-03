@@ -56,6 +56,7 @@ exports.workout_diary_step = functions.https.onRequest((request, response) => {
     console.log("Invoked");
     let workout_type = app.getArgument(WORKOUT_ARGUMENT);
     let step = eval(app.getArgument(STEP_ARGUMENT));
+    let exercise_str = "";
     //let step = 1;
     if (step == null) {
         step = 1
@@ -73,7 +74,17 @@ exports.workout_diary_step = functions.https.onRequest((request, response) => {
       let val = snapshot.val();
       if (val == null) {
         trackLastUserActivity(app, workout_type, true, step);
-        app.tell("Awesome! You're done for the day Great work");
+        let exerciseRef = db.ref("last_activity/" + USER + "/exercises");
+        exerciseRef.orderByKey().on('value', function (snapshot) {
+            snapshot.forEach(function(data) {
+                let val = data.val()
+                exercise_str += val['lastRep'] + ' ' + val['exercise'] + ', ';
+            })
+            app.tell(
+                "Awesome! You're done for the day! You did " + exercise_str +
+                "! Great work. See you tomorrow."
+            )
+        });
         return;
       }
       let reps = val['reps'];
@@ -161,11 +172,50 @@ exports.workout_diary_step = functions.https.onRequest((request, response) => {
     });
   }
 
+  function endSummary (app) {
+      let workoutRef = db.ref("last_activity/" + USER + "/last_done");
+      let summary_details = {}
+      let exercise_str = "";
+      let waitCallbacks = 2;
+      workoutRef.on('value', function(snapshot){
+          let val = snapshot.val();
+          summary_details['workout_type'] = val['workout_type'];
+          summary_details['completed'] = val['completed'];
+          waitCallbacks -=1;
+          if (waitCallbacks == 0){
+              app.tell(
+                  "Your last workout was the " +
+                  summary_details["workout_type"] +
+                  ". It consisted of " +
+                  exercise_str + " ."
+              )
+          }
+      });
+
+      let exerciseRef = db.ref("last_activity/" + USER + "/exercises");
+      exerciseRef.orderByKey().on('value', function (snapshot) {
+          snapshot.forEach(function(data) {
+              let val = data.val()
+              exercise_str += val['lastRep'] + ' ' + val['exercise'] + ', ';
+          })
+          waitCallbacks -=1;
+          if (waitCallbacks == 0){
+              app.tell(
+                  "Your last workout was the " +
+                  summary_details["workout_type"] +
+                  ". It consisted of " +
+                  exercise_str + " ."
+              )
+          }
+      })
+  }
+
   // d. build an action map, which maps intent names to functions
   let actionMap = new Map();
   actionMap.set(NAME_ACTION, makeResponse);
   actionMap.set('count', logCounts);
   actionMap.set('summary', summary);
+  actionMap.set('end', endSummary);
 
 
 
